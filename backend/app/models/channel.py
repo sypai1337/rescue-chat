@@ -1,8 +1,10 @@
+from __future__ import annotations
 from datetime import datetime
 from sqlalchemy import String, DateTime, ForeignKey, Enum, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 from app.core.database import Base
+
 
 class ChannelType(str, enum.Enum):
     text = "text"

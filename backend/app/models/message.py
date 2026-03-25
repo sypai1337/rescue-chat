@@ -1,7 +1,9 @@
+from __future__ import annotations
 from datetime import datetime
 from sqlalchemy import Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+
 
 class Message(Base):
     __tablename__ = "messages"
