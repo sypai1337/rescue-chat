@@ -4,7 +4,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.server import ServerCreate, ServerResponse
-from app.services.server import create_server, get_user_servers, delete_server, join_server_by_id, get_server_members
+from app.services.server import create_server, get_user_servers, delete_server, join_server_by_id, get_server_members, leave_server
 from app.schemas.user import UserResponse
 
 router = APIRouter(prefix="/servers", tags=["servers"])
@@ -47,3 +47,13 @@ async def get_members(
     current_user: User = Depends(get_current_user),
 ):
     return await get_server_members(server_id, db, current_user) 
+
+
+
+@router.post("/{server_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave(
+    server_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    await leave_server(server_id, db, current_user)

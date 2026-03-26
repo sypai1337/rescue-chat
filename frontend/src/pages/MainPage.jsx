@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useChatStore } from '../store/chatStore'
+import { usePresence } from '../hooks/usePresence'
 import ServerList from '../components/ServerList'
 import ChannelList from '../components/ChannelList'
 import ChatArea from '../components/ChatArea'
@@ -7,6 +9,9 @@ import MemberList from '../components/MemberList'
 export default function MainPage() {
   const [activeServer, setActiveServer] = useState(null)
   const [activeChannel, setActiveChannel] = useState(null)
+  const { servers } = useChatStore()
+
+  usePresence(servers.map(s => s.id))
 
   const handleSelectServer = (serverId) => {
     setActiveServer(serverId)

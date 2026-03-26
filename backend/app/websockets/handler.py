@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.websockets.manager import manager
 from app.core.security import decode_token
+from app.core.database import get_db, AsyncSessionLocal
 from app.models.user import User
 from app.models.message import Message
 from app.models.channel import Channel
@@ -28,17 +29,20 @@ async def get_server_channel_ids(server_id: int, db: AsyncSession) -> list[int]:
 async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSession):
     token = websocket.query_params.get("token")
     if not token:
+        await websocket.accept()
         await websocket.close(code=4001)
         return
 
     user = await get_user_from_token(token, db)
     if not user:
+        await websocket.accept()
         await websocket.close(code=4001)
         return
 
     channel_result = await db.execute(select(Channel).where(Channel.id == channel_id))
     channel = channel_result.scalar_one_or_none()
     if not channel:
+        await websocket.accept()
         await websocket.close(code=4003)
         return
 
@@ -49,15 +53,19 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
         )
     )
     if not membership.scalar_one_or_none():
+        await websocket.accept()
         await websocket.close(code=4003)
         return
 
     server_id = channel.server_id
-    channel_ids = await get_server_channel_ids(server_id, db)
+
+    # закрываем сессию после проверок
+    await db.close()
 
     await manager.connect(websocket, channel_id, server_id, user.id)
 
-    # уведомляем всех в сервере что пользователь онлайн
+    async with AsyncSessionLocal() as session:
+        channel_ids = await get_server_channel_ids(server_id, session)
     await manager.broadcast_to_server(
         {"type": "user_online", "user_id": user.id},
         server_id,
@@ -67,48 +75,101 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
     try:
         while True:
             data = await websocket.receive_json()
-
             if data.get("type") != "message":
                 continue
-
             content = data.get("content", "").strip()
             if not content:
                 continue
 
-            message = Message(
-                content=content,
-                author_id=user.id,
-                channel_id=channel_id,
-            )
-            db.add(message)
-            await db.commit()
+            # создаём сессию только на время записи сообщения
+            async with AsyncSessionLocal() as session:
+                message = Message(
+                    content=content,
+                    author_id=user.id,
+                    channel_id=channel_id,
+                )
+                session.add(message)
+                await session.commit()
 
-            result = await db.execute(
-                select(Message)
-                .where(Message.id == message.id)
-                .options(selectinload(Message.author))
-            )
-            message = result.scalar_one()
+                result = await session.execute(
+                    select(Message)
+                    .where(Message.id == message.id)
+                    .options(selectinload(Message.author))
+                )
+                message = result.scalar_one()
 
-            await manager.broadcast(
-                {
-                    "type": "message",
-                    "id": message.id,
-                    "content": message.content,
-                    "channel_id": channel_id,
-                    "author": {
-                        "id": message.author.id,
-                        "username": message.author.username,
-                        "avatar_url": message.author.avatar_url,
+                await manager.broadcast(
+                    {
+                        "type": "message",
+                        "id": message.id,
+                        "content": message.content,
+                        "channel_id": channel_id,
+                        "author": {
+                            "id": message.author.id,
+                            "username": message.author.username,
+                            "avatar_url": message.author.avatar_url,
+                        },
+                        "created_at": message.created_at.isoformat(),
                     },
-                    "created_at": message.created_at.isoformat(),
-                },
-                channel_id,
-            )
+                    channel_id,
+                )
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, channel_id, server_id, user.id)
-        channel_ids = await get_server_channel_ids(server_id, db)
+        async with AsyncSessionLocal() as session:
+            channel_ids = await get_server_channel_ids(server_id, session)
+        await manager.broadcast_to_server(
+            {"type": "user_offline", "user_id": user.id},
+            server_id,
+            channel_ids,
+        )
+    
+async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.accept()
+        await websocket.close(code=4001)
+        return
+
+    user = await get_user_from_token(token, db)
+    if not user:
+        await websocket.accept()
+        await websocket.close(code=4001)
+        return
+
+    membership = await db.execute(
+        select(ServerMember).where(
+            ServerMember.server_id == server_id,
+            ServerMember.user_id == user.id,
+        )
+    )
+    if not membership.scalar_one_or_none():
+        await websocket.accept()
+        await websocket.close(code=4003)
+        return
+
+    # закрываем сессию БД — она больше не нужна
+    await db.close()
+
+    await websocket.accept()
+    manager.add_presence(websocket, server_id, user.id)
+
+    async with AsyncSessionLocal() as session:
+        channel_ids = await get_server_channel_ids(server_id, session)
+
+    await manager.broadcast_to_server(
+        {"type": "user_online", "user_id": user.id},
+        server_id,
+        channel_ids,
+    )
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.remove_presence(websocket, server_id, user.id)
+        async with AsyncSessionLocal() as session:
+            channel_ids = await get_server_channel_ids(server_id, session)
         await manager.broadcast_to_server(
             {"type": "user_offline", "user_id": user.id},
             server_id,

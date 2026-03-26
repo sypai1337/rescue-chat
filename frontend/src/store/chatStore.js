@@ -82,4 +82,13 @@ export const useChatStore = create((set, get) => ({
         )
       }))
     },
+    leaveServer: async (serverId) => {
+      await api.post(`/servers/${serverId}/leave`)
+      set(state => ({
+        servers: state.servers.filter(s => s.id !== serverId),
+        channels: state.activeServer === serverId ? [] : state.channels,
+        messages: state.activeServer === serverId ? [] : state.messages,
+        activeServer: state.activeServer === serverId ? null : state.activeServer,
+      }))
+    },
 }))

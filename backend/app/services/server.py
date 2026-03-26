@@ -102,3 +102,27 @@ async def get_server_members(server_id: int, db: AsyncSession, current_user: Use
         }
         for m in members
     ]
+
+async def leave_server(server_id: int, db: AsyncSession, user: User) -> None:
+    result = await db.execute(select(Server).where(Server.id == server_id))
+    server = result.scalar_one_or_none()
+    if not server:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server not found")
+    if server.owner_id == user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Owner cannot leave. Delete the server instead."
+        )
+
+    membership = await db.execute(
+        select(ServerMember).where(
+            ServerMember.server_id == server_id,
+            ServerMember.user_id == user.id,
+        )
+    )
+    member = membership.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a member")
+
+    await db.delete(member)
+    await db.commit()
