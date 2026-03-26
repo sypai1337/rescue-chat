@@ -25,4 +25,7 @@ class Channel(Base):
 
     # Relationships
     server: Mapped["Server"] = relationship(back_populates="channels")
-    messages: Mapped[list["Message"]] = relationship(back_populates="channel")
+    messages: Mapped[list["Message"]] = relationship(
+        back_populates="channel",
+        cascade="all, delete-orphan"
+    )

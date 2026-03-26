@@ -17,5 +17,11 @@ class Server(Base):
 
     # Relationships
     owner: Mapped["User"] = relationship(back_populates="owned_servers")
-    members: Mapped[list["ServerMember"]] = relationship(back_populates="server")
-    channels: Mapped[list["Channel"]] = relationship(back_populates="server")
+    members: Mapped[list["ServerMember"]] = relationship(
+        back_populates="server",
+        cascade="all, delete-orphan"
+    )
+    channels: Mapped[list["Channel"]] = relationship(
+        back_populates="server",
+        cascade="all, delete-orphan"
+    )
