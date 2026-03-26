@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <input id="msg" placeholder="Сообщение">
+  <button onclick="send()">Отправить</button>
+  <div id="log"></div>
+  <script>
+    // вставь свой токен и channel_id
+    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzc0NTE5OTcwLCJ0eXBlIjoiYWNjZXNzIn0.PBsrT5A_IheDl2KiCSMNLYGhDwqsGI8bdgcfoIGlQZs";
+    const channelId = 1;
+
+    const ws = new WebSocket(`ws://localhost:8000/api/v1/ws/${channelId}?token=${token}`);
+
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+      document.getElementById("log").innerHTML += `<p>${data.author.username}: ${data.content}</p>`;
+    };
+
+    ws.onclose = e => console.log("Closed:", e.code);
+
+    function send() {
+      const content = document.getElementById("msg").value;
+      ws.send(JSON.stringify({ type: "message", content }));
+    }
+  </script>
+</body>
+</html>
