@@ -12,3 +12,6 @@ class ServerResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class ServerJoin(BaseModel):
+    server_id: int

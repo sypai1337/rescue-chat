@@ -5,6 +5,8 @@ from app.models.server import Server
 from app.models.server_member import ServerMember, MemberRole
 from app.models.user import User
 from app.schemas.server import ServerCreate
+import secrets
+
 
 async def create_server(data: ServerCreate, db: AsyncSession, owner: User) -> Server:
     server = Server(name=data.name, owner_id=owner.id)
@@ -37,3 +39,46 @@ async def delete_server(server_id: int, db: AsyncSession, user: User) -> None:
 
     await db.delete(server)
     await db.commit()
+
+async def create_invite(server_id: int, db: AsyncSession, user: User) -> str:
+    result = await db.execute(select(Server).where(Server.id == server_id))
+    server = result.scalar_one_or_none()
+    if not server:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server not found")
+
+    # проверяем что пользователь состоит в сервере
+    membership = await db.execute(
+        select(ServerMember).where(
+            ServerMember.server_id == server_id,
+            ServerMember.user_id == user.id,
+        )
+    )
+    if not membership.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member")
+
+    return secrets.token_urlsafe(12)
+
+async def join_server(invite_code: str, db: AsyncSession, user: User) -> Server:
+    # декодируем server_id из инвайт кода
+    # для простоты храним инвайты в Redis, но пока сделаем через подписанный токен
+    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Use join by server_id for now")
+
+async def join_server_by_id(server_id: int, db: AsyncSession, user: User) -> Server:
+    result = await db.execute(select(Server).where(Server.id == server_id))
+    server = result.scalar_one_or_none()
+    if not server:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server not found")
+
+    existing = await db.execute(
+        select(ServerMember).where(
+            ServerMember.server_id == server_id,
+            ServerMember.user_id == user.id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already a member")
+
+    member = ServerMember(user_id=user.id, server_id=server_id, role=MemberRole.member)
+    db.add(member)
+    await db.commit()
+    return server
