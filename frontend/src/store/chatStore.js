@@ -68,4 +68,18 @@ export const useChatStore = create((set, get) => ({
       set(state => ({ messages: [...data, ...state.messages] }))
       return data.length
     },
+    members: [],
+
+    fetchMembers: async (serverId) => {
+      const { data } = await api.get(`/servers/${serverId}/members`)
+      set({ members: data })
+    },
+
+    setMemberOnline: (userId, online) => {
+      set(state => ({
+        members: state.members.map(m =>
+          m.id === userId ? { ...m, online } : m
+        )
+      }))
+    },
 }))

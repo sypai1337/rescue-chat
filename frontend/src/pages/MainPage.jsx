@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ServerList from '../components/ServerList'
 import ChannelList from '../components/ChannelList'
 import ChatArea from '../components/ChatArea'
+import MemberList from '../components/MemberList'
 
 export default function MainPage() {
   const [activeServer, setActiveServer] = useState(null)
@@ -24,6 +25,7 @@ export default function MainPage() {
         activeChannelId={activeChannel}
       />
       <ChatArea channelId={activeChannel} />
+      <MemberList serverId={activeServer} />
     </div>
   )
 }

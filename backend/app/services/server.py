@@ -5,6 +5,7 @@ from app.models.server import Server
 from app.models.server_member import ServerMember, MemberRole
 from app.models.user import User
 from app.schemas.server import ServerCreate
+from app.websockets.manager import manager
 import secrets
 
 
@@ -82,3 +83,22 @@ async def join_server_by_id(server_id: int, db: AsyncSession, user: User) -> Ser
     db.add(member)
     await db.commit()
     return server
+
+async def get_server_members(server_id: int, db: AsyncSession, current_user: User):
+    result = await db.execute(
+        select(User)
+        .join(ServerMember, User.id == ServerMember.user_id)
+        .where(ServerMember.server_id == server_id)
+    )
+    members = result.scalars().all()
+    online = manager.get_online_users(server_id)
+
+    return [
+        {
+            "id": m.id,
+            "username": m.username,
+            "avatar_url": m.avatar_url,
+            "online": m.id in online,
+        }
+        for m in members
+    ]

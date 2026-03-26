@@ -4,7 +4,8 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.server import ServerCreate, ServerResponse
-from app.services.server import create_server, get_user_servers, delete_server, join_server_by_id
+from app.services.server import create_server, get_user_servers, delete_server, join_server_by_id, get_server_members
+from app.schemas.user import UserResponse
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -38,3 +39,11 @@ async def join(
     current_user: User = Depends(get_current_user),
 ):
     return await join_server_by_id(server_id, db, current_user)
+
+@router.get("/{server_id}/members")
+async def get_members(
+    server_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await get_server_members(server_id, db, current_user) 

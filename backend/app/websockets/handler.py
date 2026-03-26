@@ -19,21 +19,13 @@ async def get_user_from_token(token: str, db: AsyncSession) -> User | None:
     result = await db.execute(select(User).where(User.id == int(user_id)))
     return result.scalar_one_or_none()
 
-async def check_channel_access(channel_id: int, user_id: int, db: AsyncSession) -> bool:
-    channel = await db.execute(select(Channel).where(Channel.id == channel_id))
-    channel = channel.scalar_one_or_none()
-    if not channel:
-        return False
-    membership = await db.execute(
-        select(ServerMember).where(
-            ServerMember.server_id == channel.server_id,
-            ServerMember.user_id == user_id,
-        )
+async def get_server_channel_ids(server_id: int, db: AsyncSession) -> list[int]:
+    result = await db.execute(
+        select(Channel.id).where(Channel.server_id == server_id)
     )
-    return membership.scalar_one_or_none() is not None
+    return list(result.scalars().all())
 
 async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSession):
-    # токен передаётся как query param: ws://.../{channel_id}?token=...
     token = websocket.query_params.get("token")
     if not token:
         await websocket.close(code=4001)
@@ -44,12 +36,34 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
         await websocket.close(code=4001)
         return
 
-    has_access = await check_channel_access(channel_id, user.id, db)
-    if not has_access:
+    channel_result = await db.execute(select(Channel).where(Channel.id == channel_id))
+    channel = channel_result.scalar_one_or_none()
+    if not channel:
         await websocket.close(code=4003)
         return
 
-    await manager.connect(websocket, channel_id)
+    membership = await db.execute(
+        select(ServerMember).where(
+            ServerMember.server_id == channel.server_id,
+            ServerMember.user_id == user.id,
+        )
+    )
+    if not membership.scalar_one_or_none():
+        await websocket.close(code=4003)
+        return
+
+    server_id = channel.server_id
+    channel_ids = await get_server_channel_ids(server_id, db)
+
+    await manager.connect(websocket, channel_id, server_id, user.id)
+
+    # уведомляем всех в сервере что пользователь онлайн
+    await manager.broadcast_to_server(
+        {"type": "user_online", "user_id": user.id},
+        server_id,
+        channel_ids,
+    )
+
     try:
         while True:
             data = await websocket.receive_json()
@@ -61,7 +75,6 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
             if not content:
                 continue
 
-            # сохраняем в БД
             message = Message(
                 content=content,
                 author_id=user.id,
@@ -70,7 +83,6 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
             db.add(message)
             await db.commit()
 
-            # подгружаем автора для ответа
             result = await db.execute(
                 select(Message)
                 .where(Message.id == message.id)
@@ -78,7 +90,6 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
             )
             message = result.scalar_one()
 
-            # рассылаем всем в канале
             await manager.broadcast(
                 {
                     "type": "message",
@@ -96,4 +107,10 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
             )
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, channel_id)
+        manager.disconnect(websocket, channel_id, server_id, user.id)
+        channel_ids = await get_server_channel_ids(server_id, db)
+        await manager.broadcast_to_server(
+            {"type": "user_offline", "user_id": user.id},
+            server_id,
+            channel_ids,
+        )
