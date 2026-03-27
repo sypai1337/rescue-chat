@@ -39,8 +39,8 @@ class ConnectionManager:
 
     async def broadcast_to_server(self, message: dict, server_id: int, channel_ids: list[int]):
         # рассылаем по каналам
-        # for channel_id in channel_ids:
-        #     await self.broadcast(message, channel_id)
+        for channel_id in channel_ids:
+            await self.broadcast(message, channel_id)
         # рассылаем по presence соединениям
         for connection in self.presence_connections.get(server_id, []):
             await connection.send_json(message)

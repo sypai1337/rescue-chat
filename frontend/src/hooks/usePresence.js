@@ -22,7 +22,6 @@ export function usePresence(serverIds) {
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data)
-            console.log('presence event:', data)
             if (data.type === 'user_online') setMemberOnline(data.user_id, true)
             if (data.type === 'user_offline') setMemberOnline(data.user_id, false)
         }
