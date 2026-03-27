@@ -5,7 +5,7 @@ import { useChatStore } from '../store/chatStore'
 export function usePresence(serverIds) {
   const connections = useRef({})
   const isUnmounted = useRef(false)
-  const { setMemberOnline } = useChatStore()
+  const { setMemberOnline, members, fetchMembers } = useChatStore()
 
   useEffect(() => {
     if (!serverIds?.length) return
@@ -21,10 +21,27 @@ export function usePresence(serverIds) {
         const ws = new WebSocket(`${WS_URL}/api/v1/ws/presence/${serverId}?token=${token}`)
 
         ws.onmessage = (event) => {
-            const data = JSON.parse(event.data)
-            if (data.type === 'user_online') setMemberOnline(data.user_id, true)
-            if (data.type === 'user_offline') setMemberOnline(data.user_id, false)
+          const data = JSON.parse(event.data)
+          if (data.type === 'user_online') {
+            const exists = members.some(m => m.id === data.user_id)
+            if (exists) {
+              setMemberOnline(data.user_id, true)
+            } else {
+              // новый участник — перезагружаем список
+              fetchMembers(serverId)
+            }
+          }
+          if (data.type === 'user_offline') {
+          const exists = members.some(m => m.id === data.user_id)
+          if (exists) {
+            setMemberOnline(data.user_id, false)
+          } else {
+            // новый участник — перезагружаем список
+            fetchMembers(serverId)
+          }
         }
+        }
+
         ws.onclose = () => {
           delete connections.current[serverId]
           if (!isUnmounted.current) setTimeout(connect, 3000)
