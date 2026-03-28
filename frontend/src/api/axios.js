@@ -1,35 +1,42 @@
 import axios from 'axios'
 import { API_URL } from '../config'
+import { getToken, setToken, clearToken } from '../store/tokenStore'
 
 const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
   withCredentials: true,
 })
 
-// автоматически добавляем access токен в каждый запрос
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('access_token')
+  if (config.skipAuthRefresh) return config
+  const token = getToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// если получили 401 — пробуем обновить токен
+let refreshPromise = null
+
 api.interceptors.response.use(
   response => response,
   async error => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    if (error.response?.status === 401 && !original._retry && !original.skipAuthRefresh) {
       original._retry = true
       try {
-        const { data } = await api.post('/auth/refresh', {}, {
-          withCredentials: true
-        })
-        localStorage.setItem('access_token', data.access_token)
+        // если рефреш уже идёт — ждём его вместо нового запроса
+        if (!refreshPromise) {
+          refreshPromise = api.post('/auth/refresh', {}, {
+            withCredentials: true,
+            skipAuthRefresh: true,
+          }).finally(() => { refreshPromise = null })
+        }
+
+        const { data } = await refreshPromise
+        setToken(data.access_token)
         original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)
-      } catch (e) {
-        console.log('refresh failed:', e.response?.status)
-        localStorage.removeItem('access_token')
+      } catch {
+        clearToken()
         window.location.href = '/login'
       }
     }

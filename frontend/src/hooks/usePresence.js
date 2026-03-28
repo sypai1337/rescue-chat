@@ -1,24 +1,28 @@
 import { useEffect, useRef } from 'react'
 import { WS_URL } from '../config'
 import { useChatStore } from '../store/chatStore'
+import { useAuthStore } from '../store/authStore'
+import { getToken } from '../store/tokenStore'
+
+
+
 
 export function usePresence(serverIds) {
   const connections = useRef({})
   const isUnmounted = useRef(false)
-  const { setMemberOnline, members, fetchMembers, removeMember } = useChatStore()
 
   useEffect(() => {
     if (!serverIds?.length) return
     isUnmounted.current = false
-
-    
 
     serverIds.forEach(serverId => {
       if (connections.current[serverId]) return
 
       const connect = () => {
         if (isUnmounted.current) return
-        const token = localStorage.getItem('access_token')
+        const token = getToken()
+        if (!token) return
+
         const ws = new WebSocket(`${WS_URL}/api/v1/ws/presence/${serverId}?token=${token}`)
 
         ws.onmessage = (event) => {
@@ -28,18 +32,10 @@ export function usePresence(serverIds) {
 
           if (data.type === 'user_online') {
             const exists = members.some(m => m.id === data.user_id)
-            if (exists) {
-              setMemberOnline(data.user_id, true)
-            } else {
-              fetchMembers(serverId)
-            }
+            exists ? setMemberOnline(data.user_id, true) : fetchMembers(serverId)
           }
-          if (data.type === 'user_offline') {
-            setMemberOnline(data.user_id, false)
-          }
-          if (data.type === 'user_left') {
-            removeMember(data.user_id)
-          }
+          if (data.type === 'user_offline') setMemberOnline(data.user_id, false)
+          if (data.type === 'user_left') removeMember(data.user_id)
         }
 
         ws.onclose = () => {

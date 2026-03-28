@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useChatStore } from '../store/chatStore'
+import { useAuthStore } from '../store/authStore'
 import { WS_URL } from '../config'
+import { getToken } from '../store/tokenStore'
 
 export function useWebSocket(channelId) {
   const ws = useRef(null)
@@ -10,8 +12,9 @@ export function useWebSocket(channelId) {
 
   const connect = () => {
     if (isUnmounted.current || !channelId) return
+    const token = getToken()
+    if (!token) return
 
-    const token = localStorage.getItem('access_token')
     ws.current = new WebSocket(`${WS_URL}/api/v1/ws/${channelId}?token=${token}`)
 
     ws.current.onopen = () => console.log('WS connected')
@@ -24,9 +27,7 @@ export function useWebSocket(channelId) {
     }
 
     ws.current.onclose = (e) => {
-      console.log('WS closed, code:', e.code)
       if (isUnmounted.current || e.code === 4001 || e.code === 4003) return
-      console.log('Reconnecting in 3s...')
       reconnectTimeout.current = setTimeout(connect, 3000)
     }
 

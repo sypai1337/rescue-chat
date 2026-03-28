@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import api from '../api/axios'
+import { getToken, setToken, clearToken } from '../store/tokenStore'
 
 export const useAuthStore = create((set) => ({
   user: null,
@@ -7,7 +8,7 @@ export const useAuthStore = create((set) => ({
 
   login: async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password })
-    localStorage.setItem('access_token', data.access_token)
+    setToken(data.access_token)
     const me = await api.get('/auth/me')
     set({ user: me.data })
   },
@@ -18,15 +19,23 @@ export const useAuthStore = create((set) => ({
 
   logout: async () => {
     await api.post('/auth/logout')
-    localStorage.removeItem('access_token')
+    clearToken()
     set({ user: null })
   },
 
   fetchMe: async () => {
     try {
+      const { data: refreshData } = await api.post('/auth/refresh', {}, {
+        withCredentials: true,
+        skipAuthRefresh: true,
+      })
+      setToken(refreshData.access_token)
+
       const { data } = await api.get('/auth/me')
       set({ user: data, isLoading: false })
-    } catch {
+    } catch (e) {
+      console.log('fetchMe failed:', e.response?.status)
+      clearToken()
       set({ user: null, isLoading: false })
     }
   },
