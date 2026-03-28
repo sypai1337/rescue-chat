@@ -5,7 +5,7 @@ import { useChatStore } from '../store/chatStore'
 export function usePresence(serverIds) {
   const connections = useRef({})
   const isUnmounted = useRef(false)
-  const { setMemberOnline, members, fetchMembers } = useChatStore()
+  const { setMemberOnline, members, fetchMembers, removeMember } = useChatStore()
 
   useEffect(() => {
     if (!serverIds?.length) return
@@ -22,24 +22,23 @@ export function usePresence(serverIds) {
 
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data)
+          const { membersByServer, setMemberOnline, fetchMembers, removeMember } = useChatStore.getState()
+          const members = membersByServer[serverId] || []
+
           if (data.type === 'user_online') {
             const exists = members.some(m => m.id === data.user_id)
             if (exists) {
               setMemberOnline(data.user_id, true)
             } else {
-              // новый участник — перезагружаем список
               fetchMembers(serverId)
             }
           }
           if (data.type === 'user_offline') {
-          const exists = members.some(m => m.id === data.user_id)
-          if (exists) {
             setMemberOnline(data.user_id, false)
-          } else {
-            // новый участник — перезагружаем список
-            fetchMembers(serverId)
           }
-        }
+          if (data.type === 'user_left') {
+            removeMember(data.user_id)
+          }
         }
 
         ws.onclose = () => {

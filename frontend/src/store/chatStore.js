@@ -36,6 +36,7 @@ export const useChatStore = create((set, get) => ({
     const { data } = await api.post(`/servers/${serverId}/channels`, { name, type })
     set(state => ({ channels: [...state.channels, data] }))
   },
+
   deleteServer: async (serverId) => {
     await api.delete(`/servers/${serverId}`)
     set(state => ({
@@ -43,52 +44,73 @@ export const useChatStore = create((set, get) => ({
         channels: state.activeServer === serverId ? [] : state.channels,
         activeServer: state.activeServer === serverId ? null : state.activeServer,
     }))
-    },
-    deleteChannel: async (channelId) => {
-      await api.delete(`/channels/${channelId}`)
-      set(state => ({
-        channels: state.channels.filter(c => c.id !== channelId),
-        activeChannel: state.activeChannel === channelId ? null : state.activeChannel,
-        messages: state.activeChannel === channelId ? [] : state.messages,
-      }))
-    },
-    joinServer: async (serverId) => {
-      const { data } = await api.post(`/servers/${serverId}/join`)
-      set(state => ({ servers: [...state.servers, data] }))
-    },
-    fetchOlderMessages: async (channelId) => {
-      const { messages } = get()
-      if (messages.length === 0) return
+  },
 
-      const oldestId = messages[0].id
-      const { data } = await api.get(`/channels/${channelId}/messages?before_id=${oldestId}&limit=50`)
+  deleteChannel: async (channelId) => {
+    await api.delete(`/channels/${channelId}`)
+    set(state => ({
+      channels: state.channels.filter(c => c.id !== channelId),
+      activeChannel: state.activeChannel === channelId ? null : state.activeChannel,
+      messages: state.activeChannel === channelId ? [] : state.messages,
+    }))
+  },
 
-      if (data.length === 0) return
+  joinServer: async (serverId) => {
+    const { data } = await api.post(`/servers/${serverId}/join`)
+    set(state => ({ servers: [...state.servers, data] }))
+  },
 
-      set(state => ({ messages: [...data, ...state.messages] }))
-      return data.length
-    },
-    members: [],
+  fetchOlderMessages: async (channelId) => {
+    const { messages } = get()
+    if (messages.length === 0) return
 
-    fetchMembers: async (serverId) => {
-      const { data } = await api.get(`/servers/${serverId}/members`)
-      set({ members: data })
-    },
+    const oldestId = messages[0].id
+    const { data } = await api.get(`/channels/${channelId}/messages?before_id=${oldestId}&limit=50`)
 
-    setMemberOnline: (userId, online) => {
-      set(state => ({
-        members: state.members.map(m =>
-          m.id === userId ? { ...m, online } : m
-        )
-      }))
-    },
-    leaveServer: async (serverId) => {
-      await api.post(`/servers/${serverId}/leave`)
-      set(state => ({
-        servers: state.servers.filter(s => s.id !== serverId),
-        channels: state.activeServer === serverId ? [] : state.channels,
-        messages: state.activeServer === serverId ? [] : state.messages,
-        activeServer: state.activeServer === serverId ? null : state.activeServer,
-      }))
-    },
+    if (data.length === 0) return
+
+    set(state => ({ messages: [...data, ...state.messages] }))
+    return data.length
+  },
+
+  membersByServer: {},
+
+  fetchMembers: async (serverId) => {
+    const { data } = await api.get(`/servers/${serverId}/members`)
+    set(state => ({
+      membersByServer: { ...state.membersByServer, [serverId]: data }
+    }))
+  },
+
+  setMemberOnline: (userId, online) => {
+    set(state => ({
+      membersByServer: Object.fromEntries(
+        Object.entries(state.membersByServer).map(([sid, members]) => [
+          sid,
+          members.map(m => m.id === userId ? { ...m, online } : m)
+        ])
+      )
+    }))
+  },
+
+  removeMember: (userId) => {
+    set(state => ({
+      membersByServer: Object.fromEntries(
+        Object.entries(state.membersByServer).map(([sid, members]) => [
+          sid,
+          members.filter(m => m.id !== userId)
+        ])
+      )
+    }))
+  },
+
+  leaveServer: async (serverId) => {
+    await api.post(`/servers/${serverId}/leave`)
+    set(state => ({
+      servers: state.servers.filter(s => s.id !== serverId),
+      channels: state.activeServer === serverId ? [] : state.channels,
+      messages: state.activeServer === serverId ? [] : state.messages,
+      activeServer: state.activeServer === serverId ? null : state.activeServer,
+    }))
+  },
 }))

@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { useChatStore } from '../store/chatStore'
 
 export default function MemberList({ serverId }) {
-  const { members, fetchMembers } = useChatStore()
+  const { membersByServer, fetchMembers } = useChatStore()
+  const members = membersByServer[serverId] || []
 
   useEffect(() => {
     if (serverId) fetchMembers(serverId)

@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from app.models.server import Server
 from app.models.server_member import ServerMember, MemberRole
 from app.models.user import User
+from app.models.channel import Channel
 from app.schemas.server import ServerCreate
 from app.websockets.manager import manager
 import secrets
@@ -126,3 +127,14 @@ async def leave_server(server_id: int, db: AsyncSession, user: User) -> None:
 
     await db.delete(member)
     await db.commit()
+
+    # рассылаем событие user_left
+    channel_ids_result = await db.execute(
+        select(Channel.id).where(Channel.server_id == server_id)
+    )
+    channel_ids = list(channel_ids_result.scalars().all())
+    await manager.broadcast_to_server(
+        {"type": "user_left", "user_id": user.id},
+        server_id,
+        channel_ids,
+    )

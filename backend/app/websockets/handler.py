@@ -57,20 +57,8 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
         await websocket.close(code=4003)
         return
 
-    server_id = channel.server_id
-
-    # закрываем сессию после проверок
     await db.close()
-
-    await manager.connect(websocket, channel_id, server_id, user.id)
-
-    async with AsyncSessionLocal() as session:
-        channel_ids = await get_server_channel_ids(server_id, session)
-    await manager.broadcast_to_server(
-        {"type": "user_online", "user_id": user.id},
-        server_id,
-        channel_ids,
-    )
+    await manager.connect(websocket, channel_id, channel.server_id, user.id)
 
     try:
         while True:
@@ -81,7 +69,6 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
             if not content:
                 continue
 
-            # создаём сессию только на время записи сообщения
             async with AsyncSessionLocal() as session:
                 message = Message(
                     content=content,
@@ -115,14 +102,7 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
                 )
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, channel_id, server_id, user.id)
-        async with AsyncSessionLocal() as session:
-            channel_ids = await get_server_channel_ids(server_id, session)
-        await manager.broadcast_to_server(
-            {"type": "user_offline", "user_id": user.id},
-            server_id,
-            channel_ids,
-        )
+        manager.disconnect(websocket, channel_id, channel.server_id, user.id)
     
 async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession):
     token = websocket.query_params.get("token")
@@ -157,7 +137,7 @@ async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession
     async with AsyncSessionLocal() as session:
         channel_ids = await get_server_channel_ids(server_id, session)
 
-    await manager.broadcast_to_server(
+    await manager.broadcast_to_presence(
         {"type": "user_online", "user_id": user.id},
         server_id,
         channel_ids,
@@ -168,10 +148,20 @@ async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.remove_presence(websocket, server_id, user.id)
+        
+        # проверяем что пользователь ещё состоит в сервере
         async with AsyncSessionLocal() as session:
-            channel_ids = await get_server_channel_ids(server_id, session)
-        await manager.broadcast_to_server(
-            {"type": "user_offline", "user_id": user.id},
-            server_id,
-            channel_ids,
-        )
+            membership = await session.execute(
+                select(ServerMember).where(
+                    ServerMember.server_id == server_id,
+                    ServerMember.user_id == user.id,
+                )
+            )
+            if membership.scalar_one_or_none():
+                # только если ещё состоит — рассылаем offline
+                channel_ids = await get_server_channel_ids(server_id, session)
+                await manager.broadcast_to_presence(
+                    {"type": "user_offline", "user_id": user.id},
+                    server_id,
+                    channel_ids,
+                )
