@@ -102,7 +102,7 @@ async def handle_websocket(websocket: WebSocket, channel_id: int, db: AsyncSessi
                 )
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, channel_id, channel.server_id, user.id)
+        await manager.disconnect_async(websocket, channel_id, channel.server_id, user.id)
     
 async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession):
     token = websocket.query_params.get("token")
@@ -128,14 +128,10 @@ async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession
         await websocket.close(code=4003)
         return
 
-    # закрываем сессию БД — она больше не нужна
     await db.close()
-
     await websocket.accept()
-    manager.add_presence(websocket, server_id, user.id)
-
-    async with AsyncSessionLocal() as session:
-        channel_ids = await get_server_channel_ids(server_id, session)
+    await manager.add_presence(websocket, server_id, user.id)
+    await manager._ensure_listener(f"presence:{server_id}")
 
     await manager.broadcast_to_presence(
         {"type": "user_online", "user_id": user.id},
@@ -146,9 +142,6 @@ async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.remove_presence(websocket, server_id, user.id)
-        
-        # проверяем что пользователь ещё состоит в сервере
         async with AsyncSessionLocal() as session:
             membership = await session.execute(
                 select(ServerMember).where(
@@ -157,9 +150,8 @@ async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession
                 )
             )
             if membership.scalar_one_or_none():
-                # только если ещё состоит — рассылаем offline
-                channel_ids = await get_server_channel_ids(server_id, session)
                 await manager.broadcast_to_presence(
                     {"type": "user_offline", "user_id": user.id},
-                    server_id
+                    server_id,
                 )
+        await manager.remove_presence(websocket, server_id, user.id)

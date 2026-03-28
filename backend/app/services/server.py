@@ -8,7 +8,7 @@ from app.models.channel import Channel
 from app.schemas.server import ServerCreate
 from app.websockets.manager import manager
 import secrets
-
+import os
 
 async def create_server(data: ServerCreate, db: AsyncSession, owner: User) -> Server:
     server = Server(name=data.name, owner_id=owner.id)
@@ -86,13 +86,14 @@ async def join_server_by_id(server_id: int, db: AsyncSession, user: User) -> Ser
     return server
 
 async def get_server_members(server_id: int, db: AsyncSession, current_user: User):
+    print(f"get_members called on PID: {os.getpid()}")
     result = await db.execute(
         select(User)
         .join(ServerMember, User.id == ServerMember.user_id)
         .where(ServerMember.server_id == server_id)
     )
     members = result.scalars().all()
-    online = manager.get_online_users(server_id)
+    online = await manager.get_online_users(server_id)
 
     return [
         {
