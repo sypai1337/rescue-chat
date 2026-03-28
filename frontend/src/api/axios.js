@@ -21,13 +21,14 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
       try {
-        const { data } = await axios.post('/api/v1/auth/refresh', {}, {
+        const { data } = await api.post('/auth/refresh', {}, {
           withCredentials: true
         })
         localStorage.setItem('access_token', data.access_token)
         original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)
-      } catch {
+      } catch (e) {
+        console.log('refresh failed:', e.response?.status)
         localStorage.removeItem('access_token')
         window.location.href = '/login'
       }

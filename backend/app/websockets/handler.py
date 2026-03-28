@@ -140,7 +140,6 @@ async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession
     await manager.broadcast_to_presence(
         {"type": "user_online", "user_id": user.id},
         server_id,
-        channel_ids,
     )
 
     try:
@@ -162,6 +161,5 @@ async def handle_presence(websocket: WebSocket, server_id: int, db: AsyncSession
                 channel_ids = await get_server_channel_ids(server_id, session)
                 await manager.broadcast_to_presence(
                     {"type": "user_offline", "user_id": user.id},
-                    server_id,
-                    channel_ids,
+                    server_id
                 )

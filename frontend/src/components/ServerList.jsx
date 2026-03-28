@@ -31,6 +31,9 @@ export default function ServerList({ onSelectServer, activeServerId }) {
   const handleLeave = async () => {
     if (!contextMenu) return
     await leaveServer(contextMenu.server.id)
+    if (activeServerId === contextMenu.server.id) {
+      onSelectServer(null)
+    }
     setContextMenu(null)
   }
 

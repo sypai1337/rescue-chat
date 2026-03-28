@@ -11,13 +11,14 @@ export function usePresence(serverIds) {
     if (!serverIds?.length) return
     isUnmounted.current = false
 
-    const token = localStorage.getItem('access_token')
+    
 
     serverIds.forEach(serverId => {
       if (connections.current[serverId]) return
 
       const connect = () => {
         if (isUnmounted.current) return
+        const token = localStorage.getItem('access_token')
         const ws = new WebSocket(`${WS_URL}/api/v1/ws/presence/${serverId}?token=${token}`)
 
         ws.onmessage = (event) => {

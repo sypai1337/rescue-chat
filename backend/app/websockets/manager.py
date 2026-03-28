@@ -41,8 +41,12 @@ class ConnectionManager:
         for connection in self.presence_connections.get(server_id, []):
             await connection.send_json(message)
 
-    async def broadcast_to_presence(self, message: dict, server_id: int, channel_ids: list[int]):
-        for connection in self.presence_connections.get(server_id, []):
-            await connection.send_json(message)
+    async def broadcast_to_presence(self, message: dict, server_id: int):
+        connections = self.presence_connections.get(server_id, []).copy()
+        for connection in connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
 
 manager = ConnectionManager()

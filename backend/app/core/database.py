@@ -4,7 +4,7 @@ from app.core.config import settings
 
 engine = create_async_engine(
     settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=True,  # логирует SQL запросы в консоль, удобно при разработке
+    echo=False,  # логирует SQL запросы в консоль, удобно при разработке
 )
 
 AsyncSessionLocal = async_sessionmaker(
