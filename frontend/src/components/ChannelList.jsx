@@ -3,6 +3,7 @@ import { useChatStore } from '../store/chatStore'
 import { useAuthStore } from '../store/authStore'
 import { Button } from '@/components/ui/button'
 import CreateChannelDialog from './CreateChannelDialog'
+import AudioSettingsModal from './AudioSettingsModal'
 
 export default function ChannelList({ serverId, onSelectChannel, activeChannelId }) {
   const { channels, fetchChannels, servers, deleteChannel } = useChatStore()
@@ -51,23 +52,42 @@ export default function ChannelList({ serverId, onSelectChannel, activeChannelId
             onContextMenu={e => handleContextMenu(e, channel.id)}
             onClick={() => onSelectChannel(channel.id)}
             className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors truncate
-                ${activeChannelId === channel.id
+              ${activeChannelId === channel.id
                 ? 'bg-slate-600 text-white'
                 : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`}
-            >
+          >
             # {channel.name}
           </button>
         ))}
       </div>
-      <div className="p-3 border-t border-slate-700 flex items-center justify-between">
-        <span className="text-sm text-slate-300 truncate">{user?.username}</span>
+
+      {/* User panel */}
+      <div className="p-3 border-t border-slate-700 flex items-center gap-1">
+        {/* Аватар + имя */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            {user?.username?.[0]?.toUpperCase()}
+          </div>
+          <span className="text-sm text-slate-300 truncate">{user?.username}</span>
+        </div>
+
+        {/* Кнопка настроек аудио */}
+        <AudioSettingsModal />
+
+        {/* Кнопка выйти */}
         <Button
           variant="ghost"
           size="sm"
           onClick={logout}
-          className="text-slate-400 hover:text-white shrink-0"
+          title="Выйти"
+          className="text-slate-400 hover:text-white shrink-0 px-2"
         >
-          Выйти
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
         </Button>
       </div>
 
