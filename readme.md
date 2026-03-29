@@ -40,7 +40,7 @@ A WIP real-time messaging application built with FastAPI and React. Features Web
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/rescue-chat.git
+git clone https://github.com/sypai1337/rescue-chat.git
 cd rescue-chat
 ```
 
