@@ -86,7 +86,6 @@ async def join_server_by_id(server_id: int, db: AsyncSession, user: User) -> Ser
     return server
 
 async def get_server_members(server_id: int, db: AsyncSession, current_user: User):
-    print(f"get_members called on PID: {os.getpid()}")
     result = await db.execute(
         select(User)
         .join(ServerMember, User.id == ServerMember.user_id)

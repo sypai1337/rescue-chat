@@ -17,8 +17,6 @@ export function useWebSocket(channelId) {
 
     ws.current = new WebSocket(`${WS_URL}/api/v1/ws/${channelId}?token=${token}`)
 
-    ws.current.onopen = () => console.log('WS connected')
-
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data)
       if (data.type === 'message') addMessage(data)
