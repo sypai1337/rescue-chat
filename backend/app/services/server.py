@@ -133,8 +133,7 @@ async def leave_server(server_id: int, db: AsyncSession, user: User) -> None:
         select(Channel.id).where(Channel.server_id == server_id)
     )
     channel_ids = list(channel_ids_result.scalars().all())
-    await manager.broadcast_to_server(
+    await manager.broadcast_to_presence(
         {"type": "user_left", "user_id": user.id},
         server_id,
-        channel_ids,
     )
