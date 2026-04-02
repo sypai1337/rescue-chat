@@ -22,6 +22,10 @@ export function useWebSocket(channelId) {
       if (data.type === 'message') addMessage(data)
       if (data.type === 'user_online') setMemberOnline(data.user_id, true)
       if (data.type === 'user_offline') setMemberOnline(data.user_id, false)
+      if (['voice_participants', 'user_joined_voice', 'user_left_voice',
+          'offer', 'answer', 'ice_candidate'].includes(data.type)) {
+        handleVoiceMessage?.(data)
+      }
     }
 
     ws.current.onclose = (e) => {
@@ -47,6 +51,10 @@ export function useWebSocket(channelId) {
       ws.current.send(JSON.stringify({ type: 'message', content }))
     }
   }
-
-  return { sendMessage }
+  const sendRaw = (data) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify(data))
+    }
+  }
+  return { sendMessage, sendRaw }
 }

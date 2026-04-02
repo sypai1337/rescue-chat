@@ -50,7 +50,7 @@ export default function ChannelList({ serverId, onSelectChannel, activeChannelId
           <button
             key={channel.id}
             onContextMenu={e => handleContextMenu(e, channel.id)}
-            onClick={() => onSelectChannel(channel.id)}
+            onClick={() => onSelectChannel(channel.id, channel.type)}
             className={`w-full text-left px-3 py-1.5 rounded text-sm transition-colors truncate
               ${activeChannelId === channel.id
                 ? 'bg-slate-600 text-white'

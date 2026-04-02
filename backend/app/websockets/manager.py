@@ -9,6 +9,8 @@ class ConnectionManager:
         self.active_connections: dict[int, list[WebSocket]] = defaultdict(list)
         self.presence_connections: dict[int, list[WebSocket]] = defaultdict(list)
         self._listeners: dict[int, asyncio.Task] = {}
+        self.voice_participants: dict[int, list[int]] = defaultdict(list)
+        self.user_connections: dict[int, WebSocket] = {}
 
     async def _add_online(self, server_id: int, user_id: int):
         r = await get_redis()
@@ -26,6 +28,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, channel_id: int, server_id: int, user_id: int):
         await websocket.accept()
         self.active_connections[channel_id].append(websocket)
+        self.user_connections[user_id] = websocket
         await self._add_online(server_id, user_id)
         await self._ensure_listener(f"channel:{channel_id}")
 
@@ -38,6 +41,7 @@ class ConnectionManager:
                 task.cancel()
 
     async def disconnect_async(self, websocket: WebSocket, channel_id: int, server_id: int, user_id: int):
+        self.user_connections.pop(user_id, None)
         self.disconnect(websocket, channel_id, server_id, user_id)
         await self._remove_online(server_id, user_id)
 
@@ -57,6 +61,11 @@ class ConnectionManager:
 
     async def broadcast_to_presence(self, message: dict, server_id: int):
         await publish(f"presence:{server_id}", message)
+
+    async def send_to_user(self, user_id: int, message: dict):
+        ws = self.user_connections.get(user_id)
+        if ws:
+            await ws.send_json(message)
 
     async def _ensure_listener(self, redis_channel: str):
         if redis_channel in self._listeners:

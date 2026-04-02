@@ -6,13 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-export default function ChatArea({ channelId }) {
+export default function ChatArea({ channelId, sendMessage }) {
   const [input, setInput] = useState('')
   const [isLoadingOlder, setIsLoadingOlder] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const { messages, fetchMessages, fetchOlderMessages } = useChatStore()
   const { user } = useAuthStore()
-  const { sendMessage } = useWebSocket(channelId)
   const scrollRef = useRef(null)
   const prevScrollHeight = useRef(null)
 

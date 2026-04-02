@@ -129,12 +129,13 @@ async def leave_server(server_id: int, db: AsyncSession, user: User) -> None:
     await db.commit()
 
     # рассылаем событие user_left
+    # TODO: Сделать адекватно, чтоб приходило только на нужный сервер а не всем presence connections
     channel_ids_result = await db.execute(
         select(Channel.id).where(Channel.server_id == server_id)
     )
     channel_ids = list(channel_ids_result.scalars().all())
-    await manager.broadcast_to_server(
+    await manager.broadcast_to_presence(
         {"type": "user_left", "user_id": user.id},
         server_id,
-        channel_ids,
+
     )
