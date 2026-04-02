@@ -137,5 +137,4 @@ async def leave_server(server_id: int, db: AsyncSession, user: User) -> None:
     await manager.broadcast_to_presence(
         {"type": "user_left", "user_id": user.id},
         server_id,
-
     )
