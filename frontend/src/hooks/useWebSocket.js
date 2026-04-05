@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import { WS_URL } from '../config'
 import { getToken } from '../store/tokenStore'
 
-export function useWebSocket(channelId) {
+export function useWebSocket(channelId, handleVoiceMessage) {
   const ws = useRef(null)
   const reconnectTimeout = useRef(null)
   const isUnmounted = useRef(false)

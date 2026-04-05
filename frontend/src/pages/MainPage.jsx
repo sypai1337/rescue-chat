@@ -7,7 +7,6 @@ import ServerList from '../components/ServerList'
 import ChannelList from '../components/ChannelList'
 import ChatArea from '../components/ChatArea'
 import MemberList from '../components/MemberList'
-import VoiceChannel from '../components/VoiceChannel'
 
 export default function MainPage() {
   const [activeServer, setActiveServer] = useState(null)
@@ -21,7 +20,7 @@ export default function MainPage() {
 
   const handleSelectServer = (serverId) => {
     setActiveServer(serverId)
-    setActiveChannel(null)
+    setActiveTextChannel(null)
   }
 
   const handleSelectChannel = (id, type) => {
@@ -39,10 +38,11 @@ export default function MainPage() {
         serverId={activeServer}
         onSelectChannel={handleSelectChannel}
         activeChannelId={activeTextChannel}
+        activeVoiceChannel={activeVoiceChannel}
+        onLeaveVoice={() => setActiveVoiceChannel(null)}
       />
       <ChatArea channelId={activeTextChannel} sendMessage={sendMessage} />
       <MemberList serverId={activeServer} />
-      <VoiceChannel channelId={activeVoiceChannel} />
     </div>
   )
 }

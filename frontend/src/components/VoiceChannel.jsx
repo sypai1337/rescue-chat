@@ -1,20 +1,29 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useVoice } from '../hooks/useVoice'
+import { useWebSocket } from '../hooks/useWebSocket'
 
-export default function VoiceChannel({ channelId }) {
-  if (!channelId) return null
-
+export default function VoiceChannel({ channelId, onLeave }) {
   const { user } = useAuthStore()
-  const { participants, isMuted, joinVoice, leaveVoice, toggleMute } = useVoice(channelId, user.id)
+  const sendRawRef = useRef(null)
+
+  const { participants, isMuted, joinVoice, leaveVoice, toggleMute, handleVoiceMessage } = useVoice(
+    user.id,
+    (data) => sendRawRef.current?.(data)
+  )
+  const { sendRaw } = useWebSocket(channelId, handleVoiceMessage)
 
   useEffect(() => {
     joinVoice(channelId)
     return () => leaveVoice(channelId)
   }, [channelId])
 
+  if (!channelId) return null
+
+  sendRawRef.current = sendRaw
+
   return (
-    <div className="fixed bottom-0 left-16 w-56 bg-slate-900 border-t border-slate-700 p-3">
+    <div className="bg-slate-900 border-t border-slate-700 p-3">
       <div className="text-xs text-slate-400 uppercase font-semibold mb-2">
         Голосовой канал
       </div>
@@ -33,7 +42,10 @@ export default function VoiceChannel({ channelId }) {
           {isMuted ? 'Unmute' : 'Mute'}
         </button>
         <button
-          onClick={() => leaveVoice(channelId)}
+          onClick={() => {
+            leaveVoice(channelId)
+            onLeave()
+          }}
           className="flex-1 py-1.5 rounded text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
         >
           Выйти

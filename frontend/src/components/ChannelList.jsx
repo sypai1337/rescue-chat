@@ -4,8 +4,9 @@ import { useAuthStore } from '../store/authStore'
 import { Button } from '@/components/ui/button'
 import CreateChannelDialog from './CreateChannelDialog'
 import AudioSettingsModal from './AudioSettingsModal'
+import VoiceChannel from './VoiceChannel'
 
-export default function ChannelList({ serverId, onSelectChannel, activeChannelId }) {
+export default function ChannelList({ serverId, onSelectChannel, activeChannelId, activeVoiceChannel, onLeaveVoice }) {
   const { channels, fetchChannels, servers, deleteChannel } = useChatStore()
   const { user, logout } = useAuthStore()
   const [contextMenu, setContextMenu] = useState(null)
@@ -56,10 +57,12 @@ export default function ChannelList({ serverId, onSelectChannel, activeChannelId
                 ? 'bg-slate-600 text-white'
                 : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`}
           >
-            # {channel.name}
+            {channel.type === 'voice' ? '🔊' : '#'} {channel.name}
           </button>
         ))}
       </div>
+      
+      <VoiceChannel channelId={activeVoiceChannel} onLeave={onLeaveVoice} />
 
       {/* User panel */}
       <div className="p-3 border-t border-slate-700 flex items-center gap-1">

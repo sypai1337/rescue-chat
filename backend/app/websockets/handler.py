@@ -114,12 +114,14 @@ async def handle_chat_message(data, channel_id: int, user_id: int):
         )
 
 async def handle_join_voice(channel_id: int, user_id: int):
-    manager.voice_participants[channel_id].append(user_id)
     # отправляем новому участнику список тех кто уже в канале
     await manager.send_to_user(user_id, {
         "type": "voice_participants",
-        "user_ids": manager.voice_participants[channel_id]
+        "user_ids": manager.voice_participants[channel_id].copy()
     })
+
+    manager.voice_participants[channel_id].append(user_id)
+    
     # остальным участникам сообщаем что кто-то вошёл
     for uid in manager.voice_participants[channel_id]:
         if uid != user_id:
