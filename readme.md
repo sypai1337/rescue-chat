@@ -1,10 +1,11 @@
 # Rescue Chat
 
-A WIP real-time messaging application built with FastAPI and React. Features WebSocket-based chat, presence tracking, and voice-ready architecture.
+A WIP real-time messaging and voice chat application built with FastAPI and React. Features WebSocket-based voice and text chat, presence tracking.
 
 ## Features
 
 - Real-time messaging via WebSockets
+- Real-time voice chat
 - Server and channel management
 - Online/offline presence tracking
 - JWT authentication with refresh tokens
